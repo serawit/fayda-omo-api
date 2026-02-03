@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+
+    // Recommended additions for cleaner output & modern Node
+    "declaration": false,              // usually not needed for API servers
+    "sourceMap": true,                 // helpful for debugging
+    "inlineSources": true,             // optional: embeds source in sourcemaps
+    "removeComments": true             // reduces bundle size in dist/
+  },
+  "include": ["src/**/*", "../frontend/src/pages/ForgotAccount.tsx", "../frontend/src/pages/Register.tsx"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}

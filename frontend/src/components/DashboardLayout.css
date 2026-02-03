@@ -1,0 +1,5 @@
+/* 
+  Layout-specific styles.
+  Generic styles (img, .icon) have been removed to prevent global conflicts.
+  Tailwind utility classes are used instead.
+*/

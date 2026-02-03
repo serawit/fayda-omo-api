@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://fayda.omobanksc.com/sitemap.xml

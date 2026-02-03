@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="omo">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Title & Basic SEO -->
+    <title>Fayda Connect | Omo Bank S.C.</title>
+    <meta name="description" content="Harmonize your Fayda National ID with Omo Bank for fast, secure, and seamless digital banking services in Ethiopia." />
+    <meta name="keywords" content="Fayda Connect, Omo Bank, Fayda ID, KYC verification, digital banking Ethiopia, secure banking, national ID harmonization" />
+    <meta name="author" content="Omo Bank S.C." />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Theme & Colors -->
+    <meta name="theme-color" content="#003087" />
+    <meta name="msapplication-TileColor" content="#003087" />
+
+    <!-- Favicon & Icons -->
+    <link rel="icon" type="image/webp" href="/omo-bank-logo.webp" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Preconnect & Performance Hints -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Open Graph (Facebook, LinkedIn, WhatsApp, etc.) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://fayda.omobanksc.com/" />
+    <meta property="og:title" content="Fayda Connect | Omo Bank S.C." />
+    <meta property="og:description" content="Securely link your Fayda ID with Omo Bank for effortless digital banking." />
+    <meta property="og:image" content="/og-preview.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Omo Bank S.C." />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Fayda Connect | Omo Bank S.C." />
+    <meta name="twitter:description" content="Harmonize Fayda ID with Omo Bank – secure digital banking made simple." />
+    <meta name="twitter:image" content="/twitter-preview.jpg" />
+
+    <!-- Optional: Basic CSP (tighten in production) -->
+    <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"> -->
+
+  </head>
+  <body class="bg-gray-50 antialiased">
+    <div id="root">
+      <!-- Initial loading screen (replaced by React on mount) -->
+      <div 
+        id="initial-loader" 
+        class="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-[#003087] to-[#001f5f] z-50 transition-opacity duration-700"
+      >
+        <div class="text-center px-6">
+          <img 
+            src="/omo-bank-logo.webp" 
+            alt="Omo Bank Logo" 
+            class="h-20 md:h-28 w-auto mx-auto mb-6 animate-pulse" 
+            loading="eager"
+          />
+          <h1 class="text-2xl md:text-3xl font-bold text-white mb-3">
+            Fayda Connect
+          </h1>
+          <p class="text-base md:text-lg text-white/90 opacity-90">
+            Loading secure banking experience...
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vite/React entry -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
