@@ -11,4 +11,26 @@
   "devDependencies": {
     "concurrently": "^9.1.0"
   }
+
+  {
+"keywords": [
+  "ethiopia",
+  "banking",
+  "fintech",
+  "digital-identity",
+  "fayda",
+  "oidc",
+  "openid-connect",
+  "kyc",
+  "authentication",
+  "otp",
+  "mern",
+  "full-stack",
+  "nodejs",
+  "express",
+  "react",
+  "mongodb",
+  "banking-api"
+]
+  },
 }
