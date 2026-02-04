@@ -183,7 +183,7 @@ For access requests or technical inquiries:
 
 * **Omo Bank Digital Banking & Integration Team**
 Senior Full Stack Developer Serawit Seba
-Phone:0913996975
+Phone:+251913996975
 Email:serawit.info@gmail.com, serjo.info@gmail.com
 ---
 
