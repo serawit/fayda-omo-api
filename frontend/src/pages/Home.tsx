@@ -4,6 +4,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import axios from 'axios';
 import { API_CONFIG } from '@/config/config';
+import Alert from '../components/Alert';
 
 export default function Home() {
   const { t } = useTranslation();
@@ -33,10 +34,34 @@ export default function Home() {
     }
   };
 
+  const handleAccountNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Remove all non-digit characters and limit to 16 digits
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 16);
+
+    setAccountNumber(digitsOnly);
+    setError(null);
+  };
+
+  const handlePaste = async () => {
+    if (!navigator.clipboard) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        const digitsOnly = text.replace(/\D/g, '').slice(0, 16);
+        setAccountNumber(digitsOnly);
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Failed to paste:', err);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (accountNumber.trim().length < 8) {
-      setError('Invalid account format. Please enter at least 8 digits.');
+    const digitsOnly = accountNumber.replace(/\D/g, '');
+    if (digitsOnly.length !== 16) {
+      setError('Invalid account format. Please enter exactly 16 digits.');
       return;
     }
     if (!termsAccepted) {
@@ -47,10 +72,10 @@ export default function Home() {
     
     try {
       // Call backend to generate and send OTP
-      await axios.post(`${API_CONFIG.BASE_URL}/otp/send`, { accountNumber }, { withCredentials: true });
+      await axios.post(`${API_CONFIG.BASE_URL}/auth/initiate-login`, { accountNumber: digitsOnly }, { withCredentials: true });
       
       setLoading(false);
-      navigate('/otp', { state: { accountNumber } });
+      navigate('/otp', { state: { accountNumber: digitsOnly } });
     } catch (err: any) {
       setLoading(false);
       setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
@@ -104,13 +129,25 @@ export default function Home() {
               inputMode="numeric"
               required
               value={accountNumber}
-              onChange={(e) => {setAccountNumber(e.target.value); setError(null);}}
-              placeholder={t('account_number')}
-              className="w-full pl-10 pr-10 py-3 bg-transparent text-lg font-medium outline-none placeholder:text-gray-300 text-gray-700"
+              onChange={handleAccountNumberChange}
+              placeholder="XXXXXXXXXXXXXXXX"
+              className="w-full pl-10 pr-24 py-3 bg-transparent text-lg font-medium outline-none placeholder:text-gray-300 text-gray-700"
             />
+            <button
+              type="button"
+              onClick={handlePaste}
+              className="absolute right-14 bottom-3 text-xs font-bold text-[#004b8d] hover:text-blue-700 transition-colors uppercase tracking-wider"
+            >
+              Paste
+            </button>
+            <div className="absolute right-0 bottom-3 text-xs font-mono text-gray-400">
+              <span className={accountNumber.length === 16 ? 'text-green-500' : 'text-gray-400'}>
+                {accountNumber.length}
+              </span> / 16
+            </div>
           </div>
 
-          {error && <p className="text-red-500 text-[10px] font-bold uppercase tracking-tight">{error}</p>}
+          {error && <Alert message={error} onClose={() => setError(null)} />}
 
           <div className="flex items-center justify-start gap-3 text-left px-1">
             <input
@@ -131,7 +168,7 @@ export default function Home() {
           <div className="flex flex-col items-center">
             <button
               type="submit"
-              disabled={loading || accountNumber.length < 8 || !termsAccepted}
+              disabled={loading || accountNumber.replace(/\D/g, '').length !== 16 || !termsAccepted}
               className="btn-primary"
             >
               {loading ? <LoadingSpinner className="w-5 h-5" /> : (

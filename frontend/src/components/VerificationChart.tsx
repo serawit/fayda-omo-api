@@ -52,7 +52,7 @@ export default function VerificationChart({ onBarClick, activeDay }: Verificatio
                 <Bar dataKey="Pending" radius={[4, 4, 0, 0]}>
                     {data.map((entry) => (
                         <Cell key={`cell-pending-${entry.name}`}
-                              fill={activeDay === entry.name || !activeDay ? '#FDC82F' : 'rgba(253, 200, 47, 0.5)'}
+                              fill={activeDay === entry.name || !activeDay ? '#2fa4fd' : 'rgba(9, 141, 223, 0.5)'}
                         />
                     ))}
                 </Bar>

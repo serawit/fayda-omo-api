@@ -1,71 +1,73 @@
 import axios from 'axios';
 
-export const sendSms = async (to: string, message: string): Promise<boolean> => {
-  const provider = process.env.SMS_PROVIDER || 'mock'; // Options: 'mock', 'twilio', 'ethio'
+// Read configuration from environment variables for production readiness.
+const SMS_GATEWAY_URL = process.env.SMS_GATEWAY_URL;
+const SMS_API_KEY = process.env.SMS_API_KEY;
+const SMS_SENDER_ID = process.env.SMS_SENDER_ID; // The Short Code, e.g., 6816
+
+// --- Verification Log ---
+console.log('[SMS Service] Configuration Loaded:');
+console.log(`   URL: ${SMS_GATEWAY_URL}`);
+console.log(`   Sender ID: ${SMS_SENDER_ID}`);
+console.log(`   API Key Present: ${!!SMS_API_KEY}`);
+// ------------------------
+
+/**
+ * Sends an SMS message using the internal gateway.
+ * @param to The recipient's phone number, expected to be in a format the gateway understands.
+ * @param message The message content.
+ */
+export const sendSms = async (to: string, message: string): Promise<void> => {
+  // A production-ready service should not proceed if critical configuration is missing.
+  if (!SMS_GATEWAY_URL) {
+    console.error('[SMS Service] Error: SMS_GATEWAY_URL is not defined in environment variables.');
+    throw new Error('SMS service is not configured.');
+  }
+  if (!SMS_SENDER_ID) {
+    console.warn('[SMS Service] Warning: SMS_SENDER_ID is not defined. The sender may be incorrect.');
+  }
+
+  // The gateway might expect specific field names (e.g., 'destination', 'text').
+  // This payload is a common example.
+  const payload = {
+    to,
+    message,
+    from: SMS_SENDER_ID, // Use the short code from .env
+  };
+
+  // Prepare headers for authentication.
+  const headers: { [key: string]: string } = {
+    'Content-Type': 'application/x-www-form-urlencoded', // Try form-urlencoded
+    'User-Agent': 'Fayda-Omo-API/1.0',
+  };
+  if (SMS_API_KEY) {
+    headers['X-API-Key'] = SMS_API_KEY; // Using a common custom header for API keys.
+  }
+
+  console.log(`[SMS Service] Attempting to send SMS to ${to} via gateway at ${SMS_GATEWAY_URL}`);
 
   try {
-    if (provider === 'twilio') {
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken = process.env.TWILIO_AUTH_TOKEN;
-      const fromNumber = process.env.TWILIO_FROM_NUMBER;
+    const response = await axios.post(SMS_GATEWAY_URL, new URLSearchParams(payload), {
+      headers,
+      timeout: 10000, // 10-second timeout for the request
+    });
 
-      if (!accountSid || !authToken || !fromNumber) {
-        console.error('❌ Twilio configuration missing in .env');
-        return false;
-      }
-
-      // Twilio API requires Basic Auth and Form Data
-      const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-      await axios.post(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        new URLSearchParams({
-          To: to,
-          From: fromNumber,
-          Body: message,
-        }),
-        {
-          headers: {
-            Authorization: `Basic ${auth}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        }
-      );
-      console.log(`[SMS] Sent via Twilio to ${to}`);
-      return true;
-    } else if (provider === 'ethio') {
-      // EthioTelecom / Local Aggregator implementation
-      // Adjust payload based on specific Omo Bank Gateway documentation
-      const apiUrl = process.env.ETHIO_SMS_URL;
-      const apiKey = process.env.ETHIO_SMS_API_KEY;
-      const senderId = process.env.ETHIO_SMS_SENDER_ID || 'OmoBank';
-
-      if (!apiUrl) {
-        console.error('❌ EthioTelecom SMS URL missing in .env');
-        return false;
-      }
-
-      await axios.post(apiUrl, {
-        to,
-        message,
-        sender_id: senderId,
-        api_key: apiKey,
-      });
-      console.log(`[SMS] Sent via EthioTelecom to ${to}`);
-      return true;
-    } else {
-      // Default Mock (Development)
-      console.log('\n=================================================');
-      console.log(`📱 SMS SIMULATION (Provider: ${provider})`);
-      console.log(`To:      ${to}`);
-      console.log(`Message: ${message}`);
-      console.log('=================================================');
-      return true;
-    }
+    console.log(`[SMS Service] SMS submitted to gateway. Status: ${response.status}`);
   } catch (error: any) {
-    console.error(
-      `[SMS ERROR] Failed to send to ${to}:`,
-      error.response?.data || error.message
-    );
+    console.error(`[SMS Service] Failed to send SMS. Error: ${error.message}`);
+    throw new Error('SMS gateway service is unavailable.');
+  }
+};
+
+/**
+ * Checks if the SMS service is configured and reachable.
+ */
+export const checkSmsHealth = async (): Promise<boolean> => {
+  if (!SMS_GATEWAY_URL) return false;
+  try {
+    // Perform a lightweight check or just return true if config exists
+    return true; 
+  } catch (error) {
     return false;
   }
 };

@@ -3,12 +3,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { API_CONFIG } from '@/config/config';
 import LoadingSpinner from '../components/LoadingSpinner';
+import HarmonizationSkeleton from '../components/HarmonizationSkeleton';
 import { useTranslation } from 'react-i18next';
+import Alert from '../components/Alert';
 
 interface CbsProfile {
   accountNumber: string;
   fullName: string;
   phoneNumber: string;
+  gender?: string;
+  nationalId?: string;
 }
 
 export default function HarmonizationWizard() {
@@ -34,11 +38,21 @@ export default function HarmonizationWizard() {
           withCredentials: true
         });
         
+        // If user is already verified (e.g., after returning from Fayda), redirect to success
+        if (response.data.user?.nidVerified) {
+          navigate('/success');
+          return;
+        }
         if (response.data.cbsProfile) {
           setCbsProfile(response.data.cbsProfile);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Session check failed', err);
+        // If session is invalid/expired (401 or 403), redirect to home to start over
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          navigate('/');
+          return;
+        }
         setError(t('session_load_failed', 'Failed to load account details.'));
       } finally {
         setInitialLoading(false);
@@ -77,7 +91,27 @@ export default function HarmonizationWizard() {
   };
 
   if (initialLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner className="w-8 h-8 text-blue-600" /></div>;
+    return <HarmonizationSkeleton />;
+  }
+
+  // After loading, if there's still no profile, it means the account lookup failed.
+  // This is a critical error state that we must handle gracefully.
+  if (!cbsProfile) {
+    return (
+      <div className="auth-card">
+        <Alert 
+          message={error || t('cbs_profile_load_failed', 'Could not retrieve account details. The session may be invalid or the account number incorrect.')}
+        />
+        <div className="mt-6">
+          <button
+            onClick={() => navigate('/')}
+            className="btn-primary w-full"
+          >
+            {t('start_over', 'Start Over')}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -97,7 +131,7 @@ export default function HarmonizationWizard() {
           <div className="w-full flex justify-start mb-6">
             <button
               onClick={() => navigate('/otp', { state: { accountNumber: cbsProfile?.accountNumber } })}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#004b8d] transition-colors font-medium"
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#004b8d] transition-colors font-medium p-2 rounded-lg hover:bg-gray-100"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               {t('back')}
@@ -126,33 +160,46 @@ export default function HarmonizationWizard() {
           {/* Account Selection List */}
           <div className="space-y-4 mb-8 text-left">
             {cbsProfile && (
-              <label className={`relative flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${confirmed ? 'border-[#00adef] bg-blue-50/50' : 'border-gray-100 hover:border-gray-200'}`}>
+              <label className={`relative flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 ${confirmed ? 'border-[#004b8d] bg-blue-50 shadow-md' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`}>
                 <div className="flex items-center h-5 mt-1">
                   <input
                     type="checkbox"
                     checked={confirmed}
                     onChange={(e) => setConfirmed(e.target.checked)}
-                    className="w-5 h-5 text-[#00adef] border-gray-300 rounded focus:ring-[#00adef]"
+                    className="w-5 h-5 text-[#004b8d] border-gray-300 rounded focus:ring-[#004b8d] focus:ring-offset-2"
                   />
                 </div>
                 <div className="ml-3">
                   <span className="block text-sm font-bold text-gray-900">
-                    {cbsProfile.fullName}
+                    {cbsProfile?.fullName}
                   </span>
                   <span className="block text-xs text-gray-500 mt-0.5 font-mono tracking-wide">
-                    {cbsProfile.accountNumber}
+                    {cbsProfile?.accountNumber}
                   </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800 mt-2">
-                    {t('active_status')}
+                  <span className="block text-xs text-gray-500 mt-1">
+                    <span className="font-semibold text-gray-600">{t('phone_number')}:</span> {cbsProfile?.phoneNumber}
                   </span>
+                  {cbsProfile?.gender && (
+                    <span className="block text-xs text-gray-500 mt-1">
+                      <span className="font-semibold text-gray-600">Gender:</span> {cbsProfile.gender}
+                    </span>
+                  )}
                 </div>
+                {confirmed && (
+                  <div className="absolute top-3 right-3 w-5 h-5 bg-[#004b8d] rounded-full flex items-center justify-center text-white animate-pop-in">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                )}
               </label>
             )}
           </div>
 
           {/* Summary / Info Box */}
-          <div className="bg-gray-50 rounded-xl p-5 mb-8 text-left border border-gray-100">
-            <h3 className="text-gray-900 font-semibold text-xs uppercase tracking-wider mb-3">{t('summary')}</h3>
+          <div className="bg-gray-50 rounded-xl p-5 mb-8 text-left border border-gray-200">
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <h3 className="text-gray-800 font-semibold text-xs uppercase tracking-wider">{t('summary')}</h3>
+            </div>
             <div className="space-y-2 text-xs text-gray-600">
               <div className="flex justify-between">
                 <span>{t('action')}:</span>
@@ -170,12 +217,16 @@ export default function HarmonizationWizard() {
           <button
             onClick={handleConsent}
             disabled={loading || !confirmed}
-            className="btn-primary"
+            className="btn-primary flex items-center justify-center gap-2"
           >
             {loading ? <LoadingSpinner className="w-5 h-5" /> : (
               <>
+                <img 
+                  src="/fayda-logo.png"
+                  alt="Fayda" 
+                  className="w-6 h-6 object-contain" 
+                />
                 <span>{t('continue_fayda')}</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
               </>
             )}
           </button>
@@ -216,5 +267,5 @@ export default function HarmonizationWizard() {
         </div>
       )}
     </>
-  );
+  )
 }

@@ -18,6 +18,6 @@
     "inlineSources": true,             // optional: embeds source in sourcemaps
     "removeComments": true             // reduces bundle size in dist/
   },
-  "include": ["src/**/*", "../frontend/src/pages/ForgotAccount.tsx", "../frontend/src/pages/Register.tsx"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

@@ -42,15 +42,7 @@ export default defineConfig({
   // ===============================================
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      'components': path.resolve(__dirname, './src/components'),
-      'pages': path.resolve(__dirname, './src/pages'),
-      'hooks': path.resolve(__dirname, './src/hooks'),
-      'utils': path.resolve(__dirname, './src/utils'),
-      'config': path.resolve(__dirname, './src/config'),
-      // React deduping (helps with multiple React instances)
-      'react': path.resolve(__dirname, './node_modules/react'),
-      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      '@': path.resolve(__dirname, './src')
     },
   },
 

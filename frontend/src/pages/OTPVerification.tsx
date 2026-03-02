@@ -1,158 +1,185 @@
-import React, { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { API_CONFIG } from '@/config/config';
+import Alert from '../components/Alert';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useTranslation } from 'react-i18next';
 
 export default function OTPVerification() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const accountNumber = location.state?.accountNumber;
-
+  const [accountNumber, setAccountNumber] = useState('');
   const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Timer State
-  const [timer, setTimer] = useState(60); // 60 seconds countdown
-  const [canResend, setCanResend] = useState(false);
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
+  const [isMockMode, setIsMockMode] = useState(false);
 
-  useEffect(() => {
-    // Redirect if no account number (direct access prevention)
-    if (!accountNumber) {
-      navigate('/');
-    }
-  }, [accountNumber, navigate]);
+  const [notification, setNotification] = useState<{ message: string; type: 'info' | 'error' } | null>(null);
 
-  // Countdown Logic
+  const location = useLocation();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // On component mount, get the account number from the navigation state
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
+    if (location.state?.accountNumber) {
+      setAccountNumber(location.state.accountNumber);
+      // [MOCK] Detect mock mode even if coming from Home page
+      if (location.state.accountNumber === '1000000000000000') {
+        setIsMockMode(true);
+      }
+      // Since we navigated here after an OTP was sent,
+      // we should start the timer immediately.
+      setCountdown(180); // 3 minutes
+      setTimerActive(true);
+      // Provide an initial message to the user.
+      setNotification({ message: t('otp_sent_initial', 'A code has been sent to your registered mobile number.'), type: 'info' });
     } else {
-      setCanResend(true);
+      // If no account number is passed, the user should not be on this page.
+      // navigate('/');
+      // [MOCK] For testing purposes, allow access with mock account
+      setAccountNumber('1000000000000000');
+      setIsMockMode(true);
+      setCountdown(180);
+      setTimerActive(true);
     }
-    return () => clearInterval(interval);
-  }, [timer]);
+  }, [location.state?.accountNumber, navigate, t]);
 
-  const handleVerify = async (e: FormEvent) => {
-    e.preventDefault();
-    if (otp.length < 6) {
-      setError(t('invalid_otp_length'));
-      return;
-    }
-    setLoading(true);
-    setError(null);
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setNotification(null);
 
     try {
-      await axios.post(
-        `${API_CONFIG.BASE_URL}/otp/verify`, 
-        { otp, accountNumber },
-        { withCredentials: true } // Important for session cookie
-      );
-      
-      // On success, proceed to Fayda Harmonization
-      navigate('/harmonization');
+      // Use the correct, more secure endpoint
+      await axios.post(`${API_CONFIG.BASE_URL}/auth/initiate-login`, { accountNumber }, { withCredentials: true });
+      setNotification({ message: t('otp_resent', 'A new code has been sent to the registered mobile number.'), type: 'info' });
+      setTimerActive(true);
+      setCountdown(180); // Start 3-minute (180 seconds) countdown
     } catch (err: any) {
-      setError(err.response?.data?.message || t('verification_failed'));
+      setNotification({ message: err.response?.data?.message || t('otp_send_fail', 'Failed to send OTP. Please try again.'), type: 'error' });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleResend = async () => {
-    if (!canResend) return;
-    
-    setLoading(true);
-    setError(null);
+  const handleVerifyOtp = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setNotification(null);
+
     try {
-      await axios.post(`${API_CONFIG.BASE_URL}/otp/send`, { accountNumber }, { withCredentials: true });
-      setTimer(60); // Reset timer
-      setCanResend(false);
+      const response = await axios.post(`${API_CONFIG.BASE_URL}/auth/verify-otp`, { accountNumber, otp }, { withCredentials: true });
+      
+      if (response.data.success && response.data.redirectUrl) {
+        setIsVerified(true);
+        setNotification({ message: t('otp_verify_success', 'OTP Verified! Redirecting to Fayda...'), type: 'info' });
+        // Redirect to the Fayda consent page provided by the backend
+        window.location.href = response.data.redirectUrl;
+      }
     } catch (err: any) {
-      setError(t('resend_failed'));
+      setNotification({ message: err.response?.data?.message || t('otp_invalid', 'Invalid OTP. Please try again.'), type: 'error' });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
+  };
+
+  // Timer effect
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0 && timerActive && !isVerified) {
+      // When timer hits 0 and the code is not yet verified, show an error
+      setNotification({ message: t('otp_expired', 'OTP has expired. Please request a new one.'), type: 'error' });
+      setTimerActive(false); // Stop the timer from running this logic again
+    }
+  }, [countdown, timerActive, isVerified, t]);
+
+  // Auto-submit on 6th digit
+  useEffect(() => {
+    if (otp.length === 6 && formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  }, [otp]);
+
+  // Format time for display
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   };
 
   return (
     <div className="auth-card">
-          
-          <div className="w-full mb-6 md:mb-8">
-            <div className="flex justify-between items-center mb-2 gap-2">
-              <span className="text-xs font-bold text-[#004b8d] uppercase tracking-widest">Step 2 of 3</span>
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">OTP Verification</span>
-            </div>
-            <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-[#004b8d] w-2/3 rounded-full transition-all duration-500"></div>
-            </div>
-          </div>
-          
-          <div className="w-full flex justify-start mb-6">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#004b8d] transition-colors font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-              {t('back')}
-            </button>
-          </div>
-
-          <div className="mb-8">
-            <h2 className="text-[#004b8d] text-[10px] font-black uppercase tracking-[0.3em] mb-2">
-              {t('step_2')}
-            </h2>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">
-              {t('enter_otp')}
-            </h1>
-            <p className="text-gray-500 text-sm">
-              {t('otp_sent_message')} <span className="font-semibold text-gray-700">{accountNumber}</span>
-            </p>
-          </div>
-
-          <form onSubmit={handleVerify} className="space-y-8">
-            <div className={`relative ${error ? 'animate-shake' : ''}`}>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  setOtp(val);
-                  setError(null);
-                }}
-                placeholder="000000"
-                className="w-full text-center text-2xl md:text-3xl tracking-[0.2em] md:tracking-[0.5em] font-bold py-4 bg-transparent border-b-2 border-gray-200 focus:border-[#00adef] outline-none text-gray-800 placeholder:text-gray-200 transition-colors"
-                autoFocus
-              />
-            </div>
-
-            {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={loading || otp.length !== 6}
-              className="btn-primary"
-            >
-              {loading ? <LoadingSpinner className="w-5 h-5 mx-auto" /> : t('verify_code')}
-            </button>
-          </form>
-
-          <div className="mt-8">
-            <button
-              onClick={handleResend}
-              disabled={!canResend || loading}
-              className={`text-sm font-semibold ${canResend ? 'text-[#F7941D] hover:text-[#e68a1b]' : 'text-gray-400 cursor-not-allowed'}`}
-            >
-              {canResend ? t('resend_code') : `${t('resend_code')} ${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}`}
-            </button>
-          </div>
+      {isMockMode && (
+        <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-center">
+          <span className="text-xs font-bold text-yellow-600 uppercase tracking-wider">
+            ⚠️ Mock Mode Active • OTP: 123456
+          </span>
         </div>
+      )}
+      <div className="w-full mb-8">
+        <div className="flex justify-between items-center mb-2 gap-2">
+          <span className="text-xs font-bold text-[#004b8d] uppercase tracking-widest">Step 2 of 3</span>
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">OTP Verification</span>
+        </div>
+        <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-[#004b8d] w-2/3 rounded-full transition-all duration-500"></div>
+        </div>
+      </div>
+
+      <div className="mb-10 text-center">
+        <h1 className="text-lg md:text-xl font-bold text-omo-brand tracking-tight mb-2">
+          {t('otp_verification_title', 'OTP Verification')}
+        </h1>
+        <p className="text-gray-500 text-sm font-medium">
+          {t('otp_instruction', 'Enter the 6-digit code sent to your registered mobile number.')}
+        </p>
+      </div>
+
+      <form ref={formRef} onSubmit={handleVerifyOtp} className="space-y-10">
+        {notification && <Alert message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
+
+        <div className="space-y-6">
+          <input
+            id="otp"
+            type="text"
+            inputMode="numeric"
+            value={otp}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, '');
+              if (val.length <= 6) setOtp(val);
+            }}
+            required
+            placeholder="123456"
+            className="w-full text-center text-3xl tracking-[0.5em] font-mono bg-gray-50 border border-gray-200 rounded-lg p-4 outline-none focus:ring-2 focus:ring-[#00adef] focus:border-[#00adef] transition"
+          />
+
+          {countdown > 0 && (
+            <div className="text-center text-sm text-gray-500">
+              {t('time_remaining', 'Time remaining')}: <strong className="text-gray-800 font-mono">{formatTime(countdown)}</strong>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col items-center">
+          <button type="submit" disabled={isLoading || otp.length !== 6 || countdown === 0} className="btn-primary w-full">
+            {isLoading ? <LoadingSpinner className="w-5 h-5" /> : t('verify_code', 'Verify Code')}
+          </button>
+          {countdown === 0 && (
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={isLoading}
+              className="mt-4 text-sm font-semibold text-[#004b8d] hover:text-[#00adef] transition-colors disabled:opacity-50"
+            >
+              {isLoading ? t('sending', 'Sending...') : t('resend_code', 'Resend Code')}
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }
